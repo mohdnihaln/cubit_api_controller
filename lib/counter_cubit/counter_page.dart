@@ -1,9 +1,30 @@
+import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cubic_api_controller/fetchApi/fetchApi_controller.dart';
 import 'package:cubic_api_controller/fetchApi/fetchApi_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shimmer/shimmer.dart';
 
-class CounterPage extends StatelessWidget {
+class CounterPage extends StatefulWidget {
+  @override
+  _CounterPageState createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  bool showText = false; // Controls when text appears
+
+  @override
+  void initState() {
+    super.initState();
+    // Show text after 2 seconds
+    Future.delayed(Duration(seconds: 4), () {
+      setState(() {
+        showText = true;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,18 +34,58 @@ class CounterPage extends StatelessWidget {
         foregroundColor: Colors.white,
         title: Text('Products'),
       ),
-      body: Center(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          // Trigger refresh by calling the fetch data method again
+          context.read<FetchCubit>().refreshApi();
+        },
         child: BlocBuilder<FetchCubit, List<Product>?>(
           builder: (context, data) {
-            if (data == null) {
-              return CircularProgressIndicator(); // Show loading indicator
-            }
-            if (data.isEmpty) {
-              return Text(
-                "No data available",
-                style: TextStyle(fontSize: 18, color: Colors.red),
+            if (data == null || (data.isEmpty && !showText)) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!showText)
+                      CircularProgressIndicator(), // ✅ First show loading icon
+                    SizedBox(height: 20),
+                    if (showText) // ✅ Show text after delay
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "Click the ", // Normal text
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            TextSpan(
+                              text: "DOWNLOAD BUTTON", // Bold text
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextSpan(
+                              text: " to load page", // Normal text
+                              style: TextStyle(fontSize: 18),
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                  ],
+                ),
               );
             }
+
+            if (data.isEmpty) {
+              return Center(
+                child: Text(
+                  "No data available",
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                ),
+              );
+            }
+
             return Padding(
               padding: const EdgeInsets.all(8.0),
               child: GridView.builder(
@@ -58,13 +119,23 @@ class CounterPage extends StatelessWidget {
                             borderRadius: BorderRadius.vertical(
                               top: Radius.circular(10),
                             ),
-                            child: Image.network(
-                              imageUrl,
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder:
-                                  (context, error, stackTrace) =>
-                                      Icon(Icons.broken_image, size: 50),
+                              placeholder:
+                                  (context, url) => Shimmer.fromColors(
+                                    baseColor: Colors.grey[300]!,
+                                    highlightColor: Colors.grey[100]!,
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: 200, // Adjust height if needed
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                              errorWidget:
+                                  (context, url, error) =>
+                                      Icon(Icons.error, size: 50),
                             ),
                           ),
                         ),
