@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-
 class FetchCubit extends Cubit<List<Product>?> {
   FetchCubit() : super(null); // Initial state is null (loading state)
 
@@ -23,6 +22,24 @@ class FetchCubit extends Cubit<List<Product>?> {
       }
     } catch (e) {
       emit([]); // Emit empty list on error
+    }
+  }
+
+  Future<void> refreshApi() async {
+    try {
+      final response = await http.get(
+        Uri.parse('https://fakestoreapi.com/products'),
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        final List<Product> products =
+            jsonData.map((json) => Product.fromJson(json)).toList();
+        emit(products); // ✅ Emit new data while keeping old data visible
+      } else {
+        emit(state); // ✅ Keep old data on error
+      }
+    } catch (e) {
+      emit(state); // ✅ Keep old data on error
     }
   }
 }
